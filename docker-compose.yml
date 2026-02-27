@@ -1,0 +1,62 @@
+version: '3.9'
+
+services:
+  dispatcher:
+    build:
+      context: .
+      dockerfile: dispatcher/Dockerfile
+    container_name: ci-dispatcher
+    restart: unless-stopped
+    environment:
+      - DB_PATH=/data/ci.db
+      - PORT=8080
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - ALLOWED_REPO=${ALLOWED_REPO:-nad279444/custom-ci}
+    volumes:
+      - ci-data:/data
+    networks:
+      - ci-net
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8080/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  runner:
+    build:
+      context: .
+      dockerfile: runner/Dockerfile
+    container_name: ci-runner
+    restart: unless-stopped
+    environment:
+      - DISPATCHER_URL=http://dispatcher:8080
+      - PORT=8090
+      - SELF_ADDRESS=runner:8090
+      - WORK_DIR=/tmp/ci-runner
+    depends_on:
+      dispatcher:
+        condition: service_healthy
+    networks:
+      - ci-net
+
+  ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+    container_name: ci-ui
+    restart: unless-stopped
+    environment:
+      - DISPATCHER_URL=http://dispatcher:8080
+      - PORT=3000
+    depends_on:
+      dispatcher:
+        condition: service_healthy
+    networks:
+      - ci-net
+
+volumes:
+  ci-data:
+
+networks:
+  ci-net:
+    driver: bridge
