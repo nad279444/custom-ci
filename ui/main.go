@@ -218,16 +218,18 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .stat-running .stat-value{color:var(--blue)}
 .stat-passrate .stat-value{color:var(--purple)}
 
-.layout{display:grid;grid-template-columns:1fr 260px;gap:20px}
+.layout{display:grid;grid-template-columns:1fr 280px;gap:20px;align-items:start}
+@media(max-width:900px){.layout{grid-template-columns:1fr}}
 
 .card{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .card-header{padding:12px 18px;border-bottom:1px solid var(--border);font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:flex;justify-content:space-between;align-items:center}
 
-table{width:100%;border-collapse:collapse}
-th{padding:10px 16px;text-align:left;font-size:.75rem;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border)}
-td{padding:11px 16px;border-bottom:1px solid var(--border);font-size:.85rem;vertical-align:middle}
+table{width:100%;border-collapse:collapse;min-width:750px}
+th{padding:10px 16px;text-align:left;font-size:.75rem;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 16px;border-bottom:1px solid var(--border);font-size:.85rem;vertical-align:middle;white-space:nowrap}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(255,255,255,.02)}
+.table-wrap{overflow-x:auto;width:100%}
 
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:10px;font-size:.75rem;font-weight:600;white-space:nowrap}
 .badge-passed{background:rgba(63,185,80,.15);color:var(--green)}
@@ -291,6 +293,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <span>last 50</span>
       </div>
       {{if .Jobs}}
+      <div class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -325,6 +328,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
         {{end}}
         </tbody>
       </table>
+      </div>
       {{else}}
       <div class="empty">
         No jobs yet.<br>Push a commit to custom-ci to get started!
