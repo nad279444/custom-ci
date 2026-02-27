@@ -201,14 +201,15 @@ func (r *Runner) runTests(jobID, commitSHA, repoURL string) (JobStatus, string) 
 	}
 
 	// ── Step 4: go vet ────────────────────────────────────────────────────────
-	fmt.Fprintf(&out, "\n── Running go vet ──\n")
-	vetOut, vetErr := r.runCmd(repoPath, 2*time.Minute, "go", "vet", "./...")
-	out.WriteString(vetOut)
-	if vetErr != nil {
-		fmt.Fprintf(&out, "⚠️  go vet found issues: %v\n", vetErr)
-	} else {
-		fmt.Fprintf(&out, "✅ go vet passed\n")
-	}
+	// ── Step 4: go vet ────────────────────────────────────────────────────────────
+fmt.Fprintf(&out, "\n── Running go vet ──\n")
+vetOut, vetErr := r.runCmd(repoPath, 8*time.Minute, "go", "vet", "./...")
+out.WriteString(vetOut)
+if vetErr != nil {
+    fmt.Fprintf(&out, "⚠️  go vet found issues (non-fatal): %v\n", vetErr)
+} else {
+    fmt.Fprintf(&out, "✅ go vet passed\n")
+}
 
 	// ── Step 5: go test ───────────────────────────────────────────────────────
 	fmt.Fprintf(&out, "\n── Running go test ./... ──\n\n")

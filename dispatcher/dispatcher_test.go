@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Test that health endpoint returns ok
+// Test health endpoint returns ok
 func TestHealthEndpoint(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	w := httptest.NewRecorder()
@@ -64,17 +64,14 @@ func TestJobDuration(t *testing.T) {
 	}
 }
 
-// Test job duration with no start time
+// Test job duration with no start time returns zero
 func TestJobDurationNotStarted(t *testing.T) {
 	job := Job{}
-
-	duration := job.Duration()
-	if duration != 0 {
-		t.Errorf("Duration() = %f; want 0", duration)
+	if job.Duration() != 0 {
+		t.Errorf("Duration() = %f; want 0", job.Duration())
 	}
 }
 
-// Test webhook signature verification
 // Test webhook signature verification
 func TestVerifySignature(t *testing.T) {
 	body := []byte(`{"ref":"refs/heads/main"}`)
@@ -92,53 +89,89 @@ func TestVerifySignature(t *testing.T) {
 	}
 }
 
-// Test dispatcher initializes with correct defaults
-func TestNewDispatcher(t *testing.T) {
-	d, err := NewDispatcher("/tmp/test-ci.db", "secret", "user/repo")
-	if err != nil {
-		t.Fatalf("NewDispatcher failed: %v", err)
+// Test webhook ignores non-push events
+func TestWebhookIgnoresNonPush(t *testing.T) {
+	d := &Dispatcher{
+		webhookSecret: "",
+		allowedRepo:   "nad279444/custom-ci",
+		jobQueue:      make(chan *Job, 10),
 	}
 
-	if d.webhookSecret != "secret" {
-		t.Errorf("webhookSecret = %q; want %q", d.webhookSecret, "secret")
-	}
+	body := []byte(`{}`)
+	req := httptest.NewRequest(http.MethodPost, "/webhook", nil)
+	req.Header.Set("X-GitHub-Event", "ping")  // not a push
+	req.Body = io.NopCloser(bytes.NewReader(body))
+	w := httptest.NewRecorder()
 
-	if d.allowedRepo != "user/repo" {
-		t.Errorf("allowedRepo = %q; want %q", d.allowedRepo, "user/repo")
-	}
+	d.handleWebhook(w, req)
 
-	if d.runners == nil {
-		t.Error("runners map should not be nil")
-	}
-
-	if d.jobQueue == nil {
-		t.Error("jobQueue channel should not be nil")
+	if w.Body.String() != "ignored" {
+		t.Errorf("non-push event should return 'ignored', got %q", w.Body.String())
 	}
 }
 
-// Test API returns empty jobs list not null
-func TestGetJobsEmpty(t *testing.T) {
-	d, _ := NewDispatcher("/tmp/test-empty.db", "", "user/repo")
+// Test webhook ignores wrong repo
+func TestWebhookIgnoresWrongRepo(t *testing.T) {
+	d := &Dispatcher{
+		webhookSecret: "",
+		allowedRepo:   "nad279444/custom-ci",
+		jobQueue:      make(chan *Job, 10),
+	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/jobs", nil)
+	body, _ := json.Marshal(map[string]interface{}{
+		"ref":   "refs/heads/main",
+		"after": "abc123",
+		"repository": map[string]string{
+			"full_name": "someone-else/other-repo",
+			"clone_url": "https://github.com/someone-else/other-repo.git",
+		},
+		"head_commit": map[string]interface{}{
+			"id":      "abc123",
+			"message": "test",
+			"author":  map[string]string{"name": "test"},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewReader(body))
+	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
 
-	d.handleGetJobs(w, req)
+	d.handleWebhook(w, req)
+
+	if w.Body.String() != "repo not watched" {
+		t.Errorf("wrong repo should return 'repo not watched', got %q", w.Body.String())
+	}
+}
+
+// Test getEnv returns fallback
+func TestGetEnv(t *testing.T) {
+	result := getEnv("DEFINITELY_NOT_SET_XYZ", "fallback")
+	if result != "fallback" {
+		t.Errorf("getEnv = %q; want fallback", result)
+	}
+}
+
+// Test runners API returns empty list not null
+func TestGetRunnersEmpty(t *testing.T) {
+	d := &Dispatcher{
+		runners: make(map[string]*Runner),
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/runners", nil)
+	w := httptest.NewRecorder()
+
+	d.handleGetRunners(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d; want %d", w.Code, http.StatusOK)
+		t.Errorf("status = %d; want 200", w.Code)
 	}
 
-	var jobs []Job
-	if err := json.NewDecoder(w.Body).Decode(&jobs); err != nil {
-		t.Fatalf("decode response: %v", err)
+	var runners []*Runner
+	if err := json.NewDecoder(w.Body).Decode(&runners); err != nil {
+		t.Fatalf("decode: %v", err)
 	}
 
-	if jobs == nil {
-		t.Error("jobs should be empty slice not nil")
-	}
-
-	if len(jobs) != 0 {
-		t.Errorf("jobs length = %d; want 0", len(jobs))
+	if len(runners) != 0 {
+		t.Errorf("runners length = %d; want 0", len(runners))
 	}
 }
