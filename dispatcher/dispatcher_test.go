@@ -75,22 +75,19 @@ func TestJobDurationNotStarted(t *testing.T) {
 }
 
 // Test webhook signature verification
+// Test webhook signature verification
 func TestVerifySignature(t *testing.T) {
-	d := &Dispatcher{webhookSecret: "testsecret"}
-
 	body := []byte(`{"ref":"refs/heads/main"}`)
 
-	// Generate valid signature
-	import_hmac := "sha256=f8b4d2c9e1a3b5d7e9f1a3b5d7e9f1a3b5d7e9f1a3b5d7e9f1a3b5d7e9f1a3b5"
-
 	// Empty secret should always pass
-	d2 := &Dispatcher{webhookSecret: ""}
-	if !d2.verifySignature(body, "") {
+	d := &Dispatcher{webhookSecret: ""}
+	if !d.verifySignature(body, "") {
 		t.Error("empty secret should always verify")
 	}
 
 	// Wrong signature should fail
-	if d.verifySignature(body, "sha256=wrongsignature") {
+	d2 := &Dispatcher{webhookSecret: "testsecret"}
+	if d2.verifySignature(body, "sha256=wrongsignature") {
 		t.Error("wrong signature should not verify")
 	}
 }
