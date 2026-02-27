@@ -1,3 +1,2 @@
-test
-testing auto deploy
+added some test
 // ci test
